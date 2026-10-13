@@ -1,0 +1,184 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-deny safety net catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // SuperAdmin / Owner bypass check
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'burelanicolas23@gmail.com' ||
+        (request.auth.token.role != null && request.auth.token.role == 'ADMINISTRADOR') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Check membership in specific tenant
+    function hasTenantUserDoc(tenantId) {
+      return exists(/databases/$(database)/documents/tenants/$(tenantId)/users/$(request.auth.uid));
+    }
+
+    function getTenantUserRole(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/users/$(request.auth.uid)).data.role;
+    }
+
+    function isTenantMember(tenantId) {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        (request.auth.token.tenantId != null && request.auth.token.tenantId == tenantId) ||
+        hasTenantUserDoc(tenantId)
+      );
+    }
+
+    function isAdmin(tenantId) {
+      return isSuperAdmin() || (
+        isSignedIn() && (
+          (request.auth.token.role != null && (request.auth.token.role == 'ADMINISTRADOR' || request.auth.token.role == 'DUEÑO')) ||
+          (hasTenantUserDoc(tenantId) && (getTenantUserRole(tenantId) == 'ADMINISTRADOR' || getTenantUserRole(tenantId) == 'DUEÑO'))
+        )
+      );
+    }
+
+    function isEncargado(tenantId) {
+      return isAdmin(tenantId) || (
+        isSignedIn() && hasTenantUserDoc(tenantId) && getTenantUserRole(tenantId) == 'ENCARGADO'
+      );
+    }
+
+    function isCajero(tenantId) {
+      return isEncargado(tenantId) || (
+        isSignedIn() && hasTenantUserDoc(tenantId) && getTenantUserRole(tenantId) == 'CAJERO'
+      );
+    }
+
+    function isRepositor(tenantId) {
+      return isCajero(tenantId) || (
+        isSignedIn() && hasTenantUserDoc(tenantId) && getTenantUserRole(tenantId) == 'REPOSITOR'
+      );
+    }
+
+    // Admins global whitelist collection
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // Global Presence / Active Terminals (Ephemeral for multi-PC monitoring)
+    match /active_terminals/{terminalId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(terminalId);
+    }
+
+    // Multi-Tenant Isolation Root
+    match /tenants/{tenantId} {
+      allow read: if isTenantMember(tenantId);
+      allow create, update: if isAdmin(tenantId);
+      allow delete: if isSuperAdmin();
+
+      // 1. Users subcollection (RBAC)
+      // CRITICAL: Normal users CANNOT create themselves or assign their own role!
+      // Only authenticated ADMINs can create or change user roles.
+      match /users/{userId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update, delete: if isAdmin(tenantId);
+      }
+
+      // 2. Products Catalog
+      match /products/{productId} {
+        allow read: if isTenantMember(tenantId);
+        // Only Admin or Encargado can add/delete products or change master prices
+        allow create, delete: if isEncargado(tenantId) && isValidId(productId);
+        // Master updates require Encargado/Admin. Repositores only adjust physical stock
+        allow update: if isEncargado(tenantId) || (
+          isRepositor(tenantId) && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'status', 'updatedAt', 'lastSoldAt', 'isManuallyMarkedMissing'])
+        );
+      }
+
+      // 3. Sales & Fiscal Comprobantes
+      match /sales/{saleId} {
+        allow read: if isTenantMember(tenantId);
+        // Only Cajero, Encargado, Admin can register sales with non-negative total
+        allow create: if isCajero(tenantId) && isValidId(saleId) && incoming().total >= 0;
+        // Completed sales are immutable. Only Admin can cancel/annul a sale
+        allow update: if isAdmin(tenantId) && existing().status == 'completada' && incoming().status == 'anulada';
+        allow delete: if false;
+      }
+
+      // 4. Centralized Fiscal Sequential Counters
+      // Controlled sequence numbers for Point of Sale and Document Type
+      match /fiscal_sequences/{sequenceId} {
+        allow read: if isCajero(tenantId);
+        allow write: if isCajero(tenantId);
+      }
+
+      // 5. Inventory Movements (Immutable Kardex)
+      match /inventory_movements/{movementId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isRepositor(tenantId) && isValidId(movementId);
+        allow update, delete: if false; // strictly immutable audit trail
+      }
+
+      // 6. Suppliers Directory
+      match /suppliers/{supplierId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update: if isEncargado(tenantId) && isValidId(supplierId);
+        allow delete: if isAdmin(tenantId);
+      }
+
+      // 7. Replenishment Orders
+      match /replenishment_orders/{orderId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update: if isRepositor(tenantId) && isValidId(orderId);
+        allow delete: if isAdmin(tenantId);
+      }
+
+      // 8. Immutable Security Audit Logs
+      match /audit_logs/{auditId} {
+        allow read: if isEncargado(tenantId);
+        allow create: if isTenantMember(tenantId) && isValidId(auditId);
+        allow update, delete: if false; // strictly append-only
+      }
+
+      // 9. Cash Closures & Blind Audits (Strict Shift Binding)
+      match /cash_closures/{closureId} {
+        allow read: if isEncargado(tenantId) || (isCajero(tenantId) && resource.data.cashierId == request.auth.uid);
+        // Only the assigned cashier can create their own shift
+        allow create: if isCajero(tenantId) && isValidId(closureId) && incoming().cashierId == request.auth.uid;
+        // Transition: Only assigned cashier can transition from abierta -> cerrando -> cerrada
+        allow update: if isEncargado(tenantId) || (
+          isCajero(tenantId) && 
+          existing().cashierId == request.auth.uid && 
+          existing().status != 'cerrada'
+        );
+        allow delete: if false; // strictly immutable historical record
+      }
+
+      // 10. Store Settings & ARCA config
+      match /store_config/{configId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isAdmin(tenantId);
+      }
+    }
+  }
+}

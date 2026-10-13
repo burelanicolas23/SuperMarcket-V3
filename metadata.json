@@ -1,0 +1,6 @@
+{
+  "name": "SuperMarcket - Sistema de Gestión de Supermercado",
+  "description": "SuperMarcket: Sistema de gestión sencillo, intuitivo y funcional para supermercados. Caja y ventas, control de inventario, stock crítico y proveedores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

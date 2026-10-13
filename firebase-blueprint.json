@@ -1,0 +1,775 @@
+{
+  "entities": {
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Organización multi-tenant (supermercado, sucursal o cadena comercial)",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador único de la organización tenant"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre comercial de la sucursal o supermercado"
+        },
+        "cuit": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "CUIT fiscal argentino registrado en ARCA"
+        },
+        "legalName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Razón social"
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Domicilio comercial"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO de creación del tenant"
+        }
+      },
+      "required": ["id", "name", "cuit"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Perfil y rol de usuario asignado por el Administrador con Custom Claims validados",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID de usuario de Firebase Authentication"
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre y apellido del empleado"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 150,
+          "description": "Correo electrónico autenticado"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["ADMINISTRADOR", "ENCARGADO", "CAJERO", "REPOSITOR"],
+          "description": "Rol operativo asignado centralmente por el backend"
+        },
+        "terminalDefault": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Terminal asignada habitual (ej: CAJA-01)"
+        },
+        "pinHash": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Hash seguro de PIN para cambio rápido de operador en caja"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO de creación de cuenta"
+        }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Catálogo de productos de SuperMarcket con precios, existencias y códigos de barra EAN-13 verificados",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador único de producto"
+        },
+        "internalCode": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Código interno o SKU del supermercado"
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Código de barras oficial (EAN-13 con dígito verificador módulo-10)"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Nombre o descripción del producto"
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Marca comercial o fabricante"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Rubro o categoría de góndola"
+        },
+        "costPrice": {
+          "type": "number",
+          "description": "Precio de costo de adquisición al proveedor sin IVA"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "Precio de venta al público en góndola con IVA incluido"
+        },
+        "stock": {
+          "type": "number",
+          "description": "Existencia actual física en góndola/depósito"
+        },
+        "minStock": {
+          "type": "number",
+          "description": "Punto de reposición o stock de alerta de quiebre"
+        },
+        "targetStock": {
+          "type": "number",
+          "description": "Stock objetivo o capacidad óptima de góndola"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["unidad", "kg", "g", "litro", "pack"],
+          "description": "Unidad de medida comercial"
+        },
+        "supplierId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del proveedor habitual de reposición"
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre de la empresa proveedora"
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Ubicación en góndola, pasillo o depósito"
+        },
+        "qrCodeData": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Payload del código QR para identificación rápida"
+        },
+        "isManuallyMarkedMissing": {
+          "type": "boolean",
+          "description": "Bandera manual de reposición urgente marcada por repositor"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["disponible", "bajo_stock", "agotado"],
+          "description": "Estado calculado de disponibilidad"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO de creación del producto"
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO de última modificación de stock o precio"
+        }
+      },
+      "required": ["id", "code", "name", "sellingPrice", "stock", "minStock", "unit"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Historial de ventas y comprobantes emitidos en el punto de venta con trazabilidad",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador único de venta"
+        },
+        "tenantId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del tenant al que pertenece la operación"
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha y hora ISO de la transacción"
+        },
+        "items": {
+          "type": "array",
+          "description": "Detalle de líneas de venta (productos, cantidad, precio, subtotal)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "code": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" },
+              "costPrice": { "type": "number" },
+              "subtotal": { "type": "number" }
+            },
+            "required": ["productId", "code", "name", "quantity", "unitPrice", "subtotal"]
+          }
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Monto bruto sin descuentos"
+        },
+        "discount": {
+          "type": "number",
+          "description": "Descuento total aplicado"
+        },
+        "total": {
+          "type": "number",
+          "description": "Total cobrado al cliente"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["efectivo", "tarjeta_debito", "tarjeta_credito", "transferencia", "cuenta_corriente", "multiple"],
+          "description": "Medio de cobro principal utilizado"
+        },
+        "paymentDetails": {
+          "type": "object",
+          "description": "Información adicional de pago (efectivo entregado, vuelto, cuotas)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["completada", "cancelada"],
+          "description": "Estado operativo del comprobante"
+        },
+        "customer": {
+          "type": "object",
+          "description": "Datos del cliente (consumidor final, CUIT, razón social)"
+        },
+        "invoiceType": {
+          "type": "string",
+          "enum": ["TICKET", "FACTURA_A", "FACTURA_B", "FACTURA_C"],
+          "description": "Tipo de comprobante comercial emitido"
+        },
+        "afipAuth": {
+          "type": "object",
+          "description": "Datos de simulación / emisión fiscal estructurados para integración ARCA (CAE, Punto de Venta, Secuencia, QR oficial)",
+          "properties": {
+            "tipoComprobante": { "type": "string" },
+            "puntoVenta": { "type": "number" },
+            "numeroComprobante": { "type": "number" },
+            "numeroComprobanteCompleto": { "type": "string" },
+            "cae": { "type": "string" },
+            "vtoCae": { "type": "string" },
+            "qrUrl": { "type": "string" },
+            "codigoBarras": { "type": "string" },
+            "condicionIvaEmisor": { "type": "string" },
+            "condicionIvaReceptor": { "type": "string" },
+            "baseImponible": { "type": "number" },
+            "importeIva": { "type": "number" },
+            "esSimulacionOficial": { "type": "boolean" }
+          },
+          "required": ["tipoComprobante", "puntoVenta", "numeroComprobante", "numeroComprobanteCompleto", "cae", "vtoCae"]
+        },
+        "cashierId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del cajero que procesó el cobro"
+        },
+        "cashierName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre del cajero"
+        },
+        "terminalId": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Identificador de terminal o caja registradora"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Observaciones de la operación"
+        },
+        "isFiscalInvoice": {
+          "type": "boolean",
+          "description": "Indica si el comprobante cuenta con CAE fiscal"
+        }
+      },
+      "required": ["id", "date", "items", "total", "paymentMethod", "status", "cashierId", "terminalId"]
+    },
+    "FiscalSequence": {
+      "title": "FiscalSequence",
+      "description": "Contador centralizado y atómico por punto de venta y tipo de comprobante para cumplimiento fiscal",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "ID clave (ej: pos01_FACTURA_B)"
+        },
+        "pointOfSale": {
+          "type": "number",
+          "description": "Número de punto de venta (1 a 99999)"
+        },
+        "invoiceType": {
+          "type": "string",
+          "enum": ["TICKET", "FACTURA_A", "FACTURA_B", "FACTURA_C"],
+          "description": "Tipo de comprobante"
+        },
+        "currentNumber": {
+          "type": "number",
+          "description": "Último número de comprobante emitido correlativo"
+        },
+        "lastIssuedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha y hora del último comprobante emitido"
+        }
+      },
+      "required": ["id", "pointOfSale", "invoiceType", "currentNumber"]
+    },
+    "InventoryMovement": {
+      "title": "InventoryMovement",
+      "description": "Kardex inmutable de movimientos de stock con causa, responsable y documento de referencia",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador único de movimiento"
+        },
+        "productId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del producto afectado"
+        },
+        "productName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Nombre del producto en el momento del movimiento"
+        },
+        "productCode": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Código de barras del producto"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["ingreso_compra", "egreso_venta", "ajuste_manual_positivo", "ajuste_manual_negativo", "egreso_merma", "recepcion_pedido"],
+          "description": "Tipo clasificado de movimiento"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Cantidad de unidades involucradas (positiva o negativa)"
+        },
+        "previousStock": {
+          "type": "number",
+          "description": "Stock previo al movimiento"
+        },
+        "newStock": {
+          "type": "number",
+          "description": "Stock resultante luego del movimiento"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Motivo justificado del movimiento"
+        },
+        "referenceDoc": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Comprobante de respaldo (Número de remito, factura o venta)"
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO del suceso"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del usuario responsable de la acción"
+        },
+        "userName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre del empleado responsable"
+        }
+      },
+      "required": ["id", "productId", "type", "quantity", "previousStock", "newStock", "timestamp"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Directorio de proveedores comerciales con datos de contacto y entrega",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Identificador de proveedor"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Razón social o nombre comercial de la empresa proveedora"
+        },
+        "contactPerson": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre del preventista o viajante"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Teléfono de pedidos / WhatsApp"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Correo electrónico de pedidos"
+        },
+        "taxId": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "CUIT del proveedor"
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Dirección fiscal o del centro de distribución"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Rubro provisto principal"
+        },
+        "deliveryDays": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Días de entrega acordados"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Condiciones comerciales, plazos de pago y notas"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Estado de proveedor activo"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha ISO de alta"
+        }
+      },
+      "required": ["id", "name", "phone"]
+    },
+    "ReplenishmentOrder": {
+      "title": "ReplenishmentOrder",
+      "description": "Órdenes de reposición enviadas a proveedores y control de recepción de mercadería",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID de orden de compra/pedido"
+        },
+        "supplierId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del proveedor destinatario"
+        },
+        "supplierName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre de la empresa proveedora"
+        },
+        "items": {
+          "type": "array",
+          "description": "Listado de ítems y cantidades solicitadas",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "productName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitCost": { "type": "number" }
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["borrador", "enviado", "recibido_parcial", "recibido_completo", "cancelado"],
+          "description": "Estado del pedido"
+        },
+        "totalEstimatedCost": {
+          "type": "number",
+          "description": "Costo estimado total de la compra"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha de emisión del pedido"
+        },
+        "deliveryNoteNumber": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Número de remito de entrega recibido"
+        }
+      },
+      "required": ["id", "supplierId", "items", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Bitácora inmutable de auditoría para seguridad, trazabilidad y control de accesos",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID único del registro de auditoría"
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha y hora exacta en formato ISO"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del usuario operador"
+        },
+        "userName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre del usuario operador"
+        },
+        "userRole": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Rol del usuario (ADMINISTRADOR, ENCARGADO, CAJERO, REPOSITOR)"
+        },
+        "terminalId": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Identificador de terminal o estación de trabajo"
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Tipo de evento (LOGIN, VENTA_COMPLETADA, AJUSTE_STOCK, CAMBIO_PRECIO, CREACION_USUARIO)"
+        },
+        "entityType": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Tipo de entidad afectada"
+        },
+        "entityId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID de la entidad afectada"
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Descripción clara del evento registrado"
+        }
+      },
+      "required": ["id", "timestamp", "userId", "userRole", "terminalId", "action", "details"]
+    },
+    "CashClosure": {
+      "title": "CashClosure",
+      "description": "Cierres de caja diarios y arqueos ciegos de seguridad por turno",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID de cierre de caja"
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha del cierre de turno"
+        },
+        "terminalId": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Identificador de la terminal cerrada"
+        },
+        "cashierId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "ID del cajero responsable"
+        },
+        "cashierName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre del cajero"
+        },
+        "openedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha y hora de apertura del turno"
+        },
+        "closedAt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Fecha y hora del arqueo y cierre"
+        },
+        "initialCash": {
+          "type": "number",
+          "description": "Fondo fijo de cambio inicial"
+        },
+        "cashSalesTotal": {
+          "type": "number",
+          "description": "Total facturado en efectivo durante el turno"
+        },
+        "cardSalesTotal": {
+          "type": "number",
+          "description": "Total facturado con tarjetas"
+        },
+        "qrSalesTotal": {
+          "type": "number",
+          "description": "Total facturado con transferencias o billeteras QR"
+        },
+        "totalSales": {
+          "type": "number",
+          "description": "Total general recaudado en el turno"
+        },
+        "expectedCash": {
+          "type": "number",
+          "description": "Efectivo teórico que debería haber en gaveta"
+        },
+        "actualCash": {
+          "type": "number",
+          "description": "Efectivo real contado en arqueo"
+        },
+        "difference": {
+          "type": "number",
+          "description": "Diferencia o faltante/sobrante de caja"
+        }
+      },
+      "required": ["id", "terminalId", "cashierId", "totalSales", "expectedCash", "actualCash", "difference"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Parámetros comerciales, fiscales y técnicos de la sucursal",
+      "type": "object",
+      "properties": {
+        "storeName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nombre de fantasía del supermercado"
+        },
+        "businessName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Razón social del contribuyente"
+        },
+        "taxId": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "CUIT del supermercado"
+        },
+        "startOfActivities": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Fecha de inicio de actividades"
+        },
+        "vatCondition": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Condición frente al IVA (ej: Responsable Inscripto)"
+        },
+        "pointOfSale": {
+          "type": "number",
+          "description": "Punto de venta fiscal asignado (ej: 1, 2)"
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Dirección fiscal y comercial del local"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Teléfono de contacto"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Correo corporativo"
+        },
+        "arcaEnvironment": {
+          "type": "string",
+          "enum": ["homologacion", "produccion"],
+          "description": "Entorno de facturación electrónica ARCA"
+        },
+        "autoCloudBackupHours": {
+          "type": "number",
+          "description": "Frecuencia en horas para copias de seguridad automáticas en la nube"
+        },
+        "ticketFooterMessage": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Mensaje al pie del comprobante fiscal"
+        }
+      },
+      "required": ["storeName", "taxId"]
+    }
+  },
+  "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Entidad principal de organización multi-tenant (supermercado o sucursal)"
+    },
+    "/tenants/{tenantId}/users/{userId}": {
+      "schema": "User",
+      "description": "Perfiles y credenciales de personal asignados exclusivamente a la organización tenant"
+    },
+    "/tenants/{tenantId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Catálogo de productos sincronizado centralmente en tiempo real para todas las terminales del tenant"
+    },
+    "/tenants/{tenantId}/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Historial de ventas y comprobantes electrónicos emitidos en el tenant"
+    },
+    "/tenants/{tenantId}/inventory_movements/{movementId}": {
+      "schema": "InventoryMovement",
+      "description": "Kardex de movimientos de inventario inmutable del tenant"
+    },
+    "/tenants/{tenantId}/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Directorio de proveedores del tenant"
+    },
+    "/tenants/{tenantId}/replenishment_orders/{orderId}": {
+      "schema": "ReplenishmentOrder",
+      "description": "Órdenes de reposición del tenant"
+    },
+    "/tenants/{tenantId}/audit_logs/{auditId}": {
+      "schema": "AuditLog",
+      "description": "Bitácora inmutable de auditoría de seguridad y operaciones del tenant"
+    },
+    "/tenants/{tenantId}/cash_closures/{closureId}": {
+      "schema": "CashClosure",
+      "description": "Cierres diarios de turno de caja y arqueos del tenant"
+    },
+    "/tenants/{tenantId}/fiscal_sequences/{sequenceId}": {
+      "schema": "FiscalSequence",
+      "description": "Contador centralizado y secuencial por punto de venta y tipo de comprobante"
+    },
+    "/tenants/{tenantId}/store_config/{configId}": {
+      "schema": "StoreSettings",
+      "description": "Configuración comercial, fiscal y sincronización cloud del tenant"
+    }
+  }
+}
